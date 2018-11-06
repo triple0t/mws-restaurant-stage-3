@@ -2,7 +2,7 @@
 
 /* This acts has the cache name as well  */
 const app = 'mwa-stage1-';
-const version = '05'
+const version = '06'
 const appName = `${app + version}`;
 
 const path = (location.hostname === 'triple0t.github.io') ? '/mws-restaurant-stage-1/' : `/`;
@@ -85,6 +85,13 @@ self.addEventListener('fetch', event => {
     // check for map images and do NOT add it to cache
     if (requestUrl.origin === 'https://api.tiles.mapbox.com') {
         // console.log('map not cached');
+        return;
+    }
+
+
+    // check for restaurants server and do NOT add it to cache
+    if (requestUrl.origin === 'http://localhost:1337') {
+        console.log('restaurant server not cached');
         return;
     }
 

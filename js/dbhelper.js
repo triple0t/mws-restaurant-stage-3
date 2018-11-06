@@ -22,7 +22,45 @@ class DBHelper {
    * This is the name (id/ key) been used to save item in the indexDb
    */
   static get DB_APP_NAME() {
-    return 'restaurants-app-data';
+    return 'restaurants-app-data-';
+  }
+
+  /**
+   * Get Data from the IndexDB Using it's url as the unique identifier
+   * 
+   * @param {string} dataType the resource url | unique identifier
+   * @param {any} err err message or object
+   * @param {function} callback callback
+   */
+  static getDataFromDB(dataType, err, callback) {
+    console.log('getting from db: ', err, dataType);
+
+    idbKeyval.get(DBHelper.DB_APP_NAME + dataType)
+      .then(dbRes => {
+        if(dbRes) {
+          callback(null, dbRes);
+        } 
+      })
+      .catch(dbErr => {
+        console.log('[dbhelper.js] err fetching from db', err, dbErr);
+        callback(err, null);
+      })
+  }
+
+  /**
+   * Save Data to the IndexDB using it's url as the unique identifier
+   * 
+   * @param {string} dataType the resource url | unique identifier
+   * @param {any} data The Data to save in the IndexDB
+   * @param {function} callback callback
+   */
+  static saveDataInDB(dataType, data, callback = function(){}) {
+    idbKeyval.set(DBHelper.DB_APP_NAME + dataType, data)
+      .then(_ => callback())
+      .catch(e => {
+        console.log('[dbhelper.js] err saving data in db', e);
+        callback();
+      })
   }
 
   /**
@@ -30,17 +68,18 @@ class DBHelper {
    * 
    * @param {Function} callback 
    */
-  static fetchDataFromServer(callback, dataType = 'restaurants') {
-    fetch(DBHelper.DATABASE_URL + dataType)
+  static fetchDataFromServer(callback, dataType, method = 'GET', data = '') {
+    if (method == 'GET' || method == 'DELETE') {
+      fetch(DBHelper.DATABASE_URL + dataType, {method: method})
       .then(res => res.json())
-      /* .then(data => {
-        // save in index db
-        idbKeyval.set(DBHelper.DB_APP_NAME + dataType, data);
-        // return the data
-        callback(null, data)
-      }) */
       .then(data => callback(null, data))
       .catch(err => callback(err, null))
+    } else {
+      fetch(DBHelper.DATABASE_URL + dataType, {method: method, body: data})
+      .then(res => res.json())
+      .then(data => callback(null, data))
+      .catch(err => callback(err, null))
+    }
   }
 
   /**
@@ -50,19 +89,28 @@ class DBHelper {
    */
   static fetchRestaurants(callback) {
     const dataType = 'restaurants';
-    // try and get prevous data from the indexDb
-    idbKeyval.get(DBHelper.DB_APP_NAME + dataType)
-    .then(dbRes => {
-      if(dbRes) {
-        callback(null, dbRes);
+
+    // try to get data from network
+    DBHelper.fetchDataFromServer((err, data) => {
+      // on err, try to get the same data from indexDb
+      if (err) {
+        /* idbKeyval.get(DBHelper.DB_APP_NAME + dataType)
+          .then(dbRes => {
+            if(dbRes) {
+              callback(null, dbRes);
+            } 
+          })
+          .catch(dbErr => {
+            console.log('[dbhelper.js] err fetching from db', dbErr, err);
+            callback(err, null);
+          }) */
+          DBHelper.getDataFromDB(dataType, err, callback)
       } else {
-        // if data does not exist, get from server and save to indexDb
-        DBHelper.fetchDataFromServer(callback, dataType)
+        // save in index db
+        DBHelper.saveDataInDB(dataType, data);
+        callback(null, data);
       }
-    })
-    .catch(dbErr => {
-      DBHelper.fetchDataFromServer(callback, dataType);
-    })
+    }, dataType);
   }
 
   /**
@@ -174,11 +222,199 @@ class DBHelper {
   }
 
   /**
+   * Fetch All The Users Faviourite Restaurants
+   *  
+   * @param {function} callback callback
+   */
+  static fetchAllFavRestaurants(callback) {
+    const dataType = `restaurants?is_favorite=true`;
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      // on err, try to get the same data from indexDb
+      if (err) {
+        DBHelper.getDataFromDB(dataType, err, callback);
+      } else {
+        // save in index db
+        // idbKeyval.set(DBHelper.DB_APP_NAME + dataType, data);
+        DBHelper.saveDataInDB(dataType, data);
+        callback(null, data);
+      }
+    }, dataType);
+  }
+
+  /**
+   * Set A Restaurant as a Favorite 
+   * 
+   * @param {number} id restaurant id
+   * @param {function} callback callback
+   */
+  static setFavRestaurant(id, callback) {
+    const dataType = `restaurants/${id}/?is_favorite=true`;
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      if(err) {
+        callback('Err Setting this restaurant as fav', null);
+      } else {
+        callback(null, data);
+      }
+    }, dataType, 'PUT');
+  }
+
+  /**
+   * Unset A Restaurant as a Favorite 
+   * 
+   * @param {number} id restaurant id
+   * @param {*} callback callback
+   */
+  static unSetFavRestaurant(id, callback) {
+    const dataType = `restaurants/${id}/?is_favorite=false`;
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      if(err) {
+        callback('Err UnSetting this restaurant as fav', null);
+      } else {
+        callback(null, data);
+      }
+    }, dataType, 'PUT');
+  }
+
+  /**
+   * Send A Post Request to Create A New Review
+   * 
+   * @param {number} id restaurant id
+   * @param {string} name the reviewer name
+   * @param {number} rating rating
+   * @param {string} comments reviewer comment text
+   * @param {function} callback callback
+   */
+  static createNewReview(id, name, rating, comments, callback) {
+    const dataType = `reviews`;
+
+    const data = JSON.stringify({
+      restaurant_id: id,
+      name: name,
+      rating: rating,
+      comments: comments
+    });
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      if(err) {
+        callback('Err Creating New Review', null);
+      } else {
+        callback(null, data);
+      }
+    }, dataType, 'POST', data);
+  }
+
+  /**
+   * Send A Put Request to Update A Review
+   * 
+   * @param {number} id review id
+   * @param {string} name the reviewer name
+   * @param {number} rating rating
+   * @param {string} comments reviewer comment text
+   * @param {function} callback callback
+   */
+  static updateReview(id, name, rating, comments, callback) {
+    const dataType = `reviews/${id}`;
+
+    const data = JSON.stringify({
+      name: name,
+      rating: rating,
+      comments: comments
+    });
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      if(err) {
+        callback('Err Updating Review', null);
+      } else {
+        callback(null, data);
+      }
+    }, dataType, 'PUT', data);
+  }
+
+  /**
+   * Send a Delete Request to Delete a Review
+   * 
+   * WARNING: This Will Totally Delete the Review
+   * 
+   * @param {number} id review id
+   * @param {function} callback callback
+   */
+  static deleteReview(id, callback) {
+    const dataType = `reviews/${id}`;
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      if(err) {
+        callback('Err Deleting Review', null);
+      } else {
+        callback(null, data);
+      }
+    }, dataType, 'DELETE');
+  }
+
+  /**
    * Fetch All The Restaurants Reviews
    */
   static fetchReviews(callback) {
     const dataType = 'reviews';
-    DBHelper.fetchDataFromServer(callback, dataType)
+
+    DBHelper.fetchDataFromServer((err, data) => {
+      // on err, try to get the same data from indexDb
+      if (err) {
+        DBHelper.getDataFromDB(dataType, err, callback);
+      } else {
+        // save in index db
+        // idbKeyval.set(DBHelper.DB_APP_NAME + dataType, data);
+        DBHelper.saveDataInDB(dataType, data);
+        callback(null, data);
+      }
+    }, dataType);
+  }
+
+  /**
+   * Fetch Reviews By Its Id
+   * 
+   * @param {number} id Review Id
+   * @param {Function} callback The Callback
+   */
+  static fetchReviewsById(id, callback) {
+    const dataType = `reviews/${id}`;
+
+    DBHelper.fetchReviews((err, reviews) => {
+      const review = reviews.find(e => e.id == id);
+      if (review) {
+        callback(null, review);
+      } else {
+        // before throwing an error. check with the server if the review exist
+        DBHelper.fetchDataFromServer((err, data) => {
+          if (err) {
+            callback('Review with this id does not exist', null);
+          } else {
+            callback(null, data);
+          }
+        }, dataType)
+      }
+    })
+  }
+
+  /**
+   * Fetch Reviews By Its Restaurant Id
+   * 
+   * @param {number} id Restaurant id
+   * @param {function} callback callback
+   */
+  static fetchReviewsByItsRestaurantId(id, callback) {
+    const dataType = `reviews?restaurant_id=${id}`;
+    DBHelper.fetchDataFromServer((err, data) => {
+      if (err) {
+        DBHelper.getDataFromDB(dataType, err, callback);
+        callback(err, null);
+      } else {
+        DBHelper.saveDataInDB(dataType, data);
+        callback(null, data);
+      }
+    }, dataType);
   }
 
   /**
