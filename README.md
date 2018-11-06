@@ -1,5 +1,13 @@
 # Local Development API Server
 ## Usage
+
+Hello
+
+```
+Start the python server: python3 -m http.server 8000
+Start the sails server: node server
+visit localhost:8000
+```
 #### Get Restaurants
 ```
 curl "http://localhost:1337/restaurants"
