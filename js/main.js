@@ -157,6 +157,12 @@ fillRestaurantsHTML = (restaurants = self.restaurants) => {
  */
 createRestaurantHTML = (restaurant) => {
   const li = document.createElement('li');
+  li.className = `res-id-${restaurant.id}`;
+
+  // check if the item is a fav
+  const isFav = (restaurant.is_favorite == true || restaurant.is_favorite == 'true') ? 'isFav' : 'notFav';
+  // set the icon type to display
+  const heartImage = (restaurant.is_favorite == true || restaurant.is_favorite == 'true') ? DBHelper.heartIconFilled : DBHelper.heartIconLight;
 
   const image = document.createElement('img');
   image.className = 'restaurant-img';
@@ -164,8 +170,17 @@ createRestaurantHTML = (restaurant) => {
   image.src = DBHelper.imageUrlForRestaurant(restaurant);
   li.append(image);
 
+  const heartIcon = document.createElement('img');
+  heartIcon.className = `res-page-icon ${isFav}`;
+  heartIcon.id = `res-img-${restaurant.id}`;
+  heartIcon.alt = `Make ${restaurant.name} Restaurant A Favorite`;
+  heartIcon.src = heartImage;
+  heartIcon.addEventListener('click', makeItemFav);
+  li.append(heartIcon);
+
   const name = document.createElement('h1');
   name.innerHTML = restaurant.name;
+  // name.append(heartIcon);
   li.append(name);
 
   const neighborhood = document.createElement('p');
@@ -183,6 +198,39 @@ createRestaurantHTML = (restaurant) => {
   li.append(more)
 
   return li
+}
+
+function makeItemFav(event) {
+  // get the id of the restaurant
+  const restaurant_id = Number(event.srcElement.id.replace('res-img-', ''));
+  // get the fav status
+  const isFav = (event.srcElement.className.indexOf('isFav') > -1) ? true : false;
+
+  if (isFav) {
+    // if the current seletecd id is a favorite, unset that.
+    DBHelper.unSetFavRestaurant(restaurant_id, (err, suc) => {
+      if (err) {
+        console.log('faild', err);
+      } else {
+        // update the image src
+        event.srcElement.src = DBHelper.heartIconLight;
+        // update the image class
+        event.srcElement.className = event.srcElement.className.replace('isFav', 'notFav');
+      }
+    });
+  } else {
+    // if the current seletecd item is not a favorite, set it as one
+    DBHelper.setFavRestaurant(restaurant_id, (err, suc) => {
+      if (err) {
+        console.log('faild', err);
+      } else {
+        // update the image src
+        event.srcElement.src = DBHelper.heartIconFilled;
+        // update the image class
+        event.srcElement.className = event.srcElement.className.replace('notFav', 'isFav');
+      }
+    });
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-let restaurant;
+let restaurant, form;
 // let newMap;
 
 /**
@@ -30,6 +30,8 @@ initMap = () => {
         id: 'mapbox.streets'    
       }).addTo(newMap);
       fillBreadcrumb();
+      self.form = document.getElementById('f-review-form');
+      self.form.onsubmit = getFormData;
       DBHelper.mapMarkerForRestaurant(self.restaurant, self.newMap);
     }
   });
@@ -98,8 +100,14 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
   if (restaurant.operating_hours) {
     fillRestaurantHoursHTML();
   }
-  // fill reviews
-  fillReviewsHTML();
+  DBHelper.fetchReviewsByItsRestaurantId(restaurant.id, (err, suc) => {
+    if (err) {
+      console.error('err with fetching reviews', err);
+    } else {
+      // fill reviews
+      fillReviewsHTML(suc);
+    }
+  });
 }
 
 /**
@@ -154,7 +162,8 @@ createReviewHTML = (review) => {
   li.appendChild(name);
 
   const date = document.createElement('p');
-  date.innerHTML = review.date;
+  // date.innerHTML = review.date;
+  date.innerHTML = new Date(review.createdAt).toDateString();
   li.appendChild(date);
 
   const rating = document.createElement('p');
@@ -192,4 +201,27 @@ getParameterByName = (name, url) => {
   if (!results[2])
     return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+getFormData = (event) => {
+  event.preventDefault();
+  // console.log(event);
+  const restaurant_id = self.restaurant.id;
+  const review_name = self.form.elements[0].value;
+  const review_rating = self.form.elements[1].value;
+  const review_comment = self.form.elements[2].value;
+
+  console.log('review details: ', review_name, review_rating, review_comment);
+
+  DBHelper.createNewReview(restaurant_id, review_name, review_rating, review_comment, (err, suc) => {
+    if (err) {
+      console.error('err creating review', err);
+    } else {
+      const ul = document.getElementById('reviews-list');
+      ul.appendChild(createReviewHTML(suc));
+      console.log('res: ', suc);
+    }
+    // reset the form
+    self.form.reset();
+  });
 }

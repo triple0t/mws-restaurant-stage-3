@@ -193,6 +193,11 @@ nav h1 a {
   text-decoration: none;
   text-transform: uppercase;
 }
+.res-page-icon {
+  float: right;
+  margin: 20px;
+  width: 10%;
+}
 
 /* ====================== Restaurant Details ====================== */
 /* .inside header {
