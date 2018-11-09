@@ -1,4 +1,4 @@
-let restaurant, form;
+let restaurant, form, toSend = false, offlineName = 'offline', offlineData;
 // let newMap;
 
 /**
@@ -33,6 +33,22 @@ initMap = () => {
       self.form = document.getElementById('f-review-form');
       self.form.onsubmit = getFormData;
       DBHelper.mapMarkerForRestaurant(self.restaurant, self.newMap);
+
+      // register custom events
+      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+
+      // create an empty array for the offline reviews if it does not exist
+      DBHelper.getDataFromDB(self.offlineName, '', (err, suc) => {
+        if(err && err == 'no-data') {
+          // console.log('saving for the first time');
+          self.offlineData = [];
+          DBHelper.saveDataInDB(self.offlineName, self.offlineData);
+        } else {
+          self.offlineData = suc;
+          handleOnline();
+        }
+      });
     }
   });
 }  
@@ -211,17 +227,73 @@ getFormData = (event) => {
   const review_rating = self.form.elements[1].value;
   const review_comment = self.form.elements[2].value;
 
-  console.log('review details: ', review_name, review_rating, review_comment);
+  // console.log('review details: ', review_name, review_rating, review_comment);
 
-  DBHelper.createNewReview(restaurant_id, review_name, review_rating, review_comment, (err, suc) => {
-    if (err) {
-      console.error('err creating review', err);
-    } else {
+  if (navigator.onLine && self.toSend) {
+    // create a new review when user is online
+
+    DBHelper.createNewReview(restaurant_id, review_name, review_rating, review_comment, (err, suc) => {
+      if (err) {
+        console.error('err creating review', err);
+      } else {
+        const ul = document.getElementById('reviews-list');
+        ul.appendChild(createReviewHTML(suc));
+        ul.scrollIntoView(false);
+        // console.log('res: ', suc);
+      }
+      // reset the form
+      self.form.reset();
+    });
+  } else {
+    // when the user is offine, save the review in the indexDB
+
+    DBHelper.getDataFromDB(self.offlineName, '', (err, res) => {
+      if (res) {
+        res.push({
+          restaurant_id,
+          review_name, 
+          review_rating, 
+          review_comment
+        });
+        self.offlineData = res;
+      }
+      DBHelper.saveDataInDB(self.offlineName, self.offlineData);
+
+      alert('Hello, you are currently offline, but your review has been saved and would be avaliable when you are back online');
+      // reset the form
+      self.form.reset();
+    });
+  }
+}
+
+handleOffline = (event) => {
+  // when user is offine, diable sending to the server
+  self.toSend = false;
+  // console.log('you are offine')
+}
+
+handleOnline = (event) => {
+  // when user is online, enable sending to the server
+  self.toSend = true;
+  // console.log('you are onine');
+  DBHelper.getDataFromDB(self.offlineName, '', (err, suc) => {
+    if (suc && suc.length > 0) {
+      // console.log('good, now u can send to the server now', suc);
       const ul = document.getElementById('reviews-list');
-      ul.appendChild(createReviewHTML(suc));
-      console.log('res: ', suc);
+      suc.forEach(e => {
+        DBHelper.createNewReview(e.restaurant_id, e.review_name, e.review_rating, e.review_comment, (errc, succ) => {
+          if (errc) {
+            console.error('err creating review', errc);
+          } else {
+            ul.appendChild(createReviewHTML(succ));
+          }
+        });
+      });
+
+      // when done, update the db
+      self.offlineData = [];
+      DBHelper.saveDataInDB(self.offlineName, self.offlineData);
+      ul.scrollIntoView(false);
     }
-    // reset the form
-    self.form.reset();
   });
 }

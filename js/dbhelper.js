@@ -49,13 +49,15 @@ class DBHelper {
    * @param {function} callback callback
    */
   static getDataFromDB(dataType, err, callback) {
-    console.log('Err before db: ', err, dataType);
+    // console.log('Err before db: ', err, dataType);
 
     idbKeyval.get(DBHelper.DB_APP_NAME + dataType)
       .then(dbRes => {
         if(dbRes) {
           callback(null, dbRes);
-        } 
+        } else {
+          callback('no-data', null);
+        }
       })
       .catch(dbErr => {
         console.log('[dbhelper.js] err fetching from db', err, dbErr);
@@ -72,11 +74,24 @@ class DBHelper {
    */
   static saveDataInDB(dataType, data, callback = function(){}) {
     idbKeyval.set(DBHelper.DB_APP_NAME + dataType, data)
-      .then(_ => callback())
+      .then(_ => callback(null, 'done'))
       .catch(e => {
         console.log('[dbhelper.js] err saving data in db', e);
-        callback();
+        callback(e, null);
       })
+  }
+
+  /**
+   * Common Http Header Methods 
+   */
+  static get httpMethods() {
+    return {
+      get:  'GET',
+      post: 'POST',
+      put:  'PUT',
+      delete: 'DELETE',
+      head: 'HEAD'
+    }
   }
 
   /**
@@ -84,13 +99,17 @@ class DBHelper {
    * 
    * @param {Function} callback 
    */
-  static fetchDataFromServer(callback, dataType, method = 'GET', data = '') {
-    if (method == 'GET' || method == 'DELETE') {
+  static fetchDataFromServer(callback, dataType, method = DBHelper.httpMethods.get, data = '') {
+    if (method == DBHelper.httpMethods.get || method == DBHelper.httpMethods.head) {
+      // send the fetch request without a body
+
       fetch(DBHelper.DATABASE_URL + dataType, {method: method})
       .then(res => res.json())
       .then(data => callback(null, data))
       .catch(err => callback(err, null))
     } else {
+      // send the fetch request with body
+
       fetch(DBHelper.DATABASE_URL + dataType, {method: method, body: data})
       .then(res => res.json())
       .then(data => callback(null, data))
@@ -273,7 +292,7 @@ class DBHelper {
       } else {
         callback(null, data);
       }
-    }, dataType, 'PUT');
+    }, dataType, DBHelper.httpMethods.put);
   }
 
   /**
@@ -291,7 +310,7 @@ class DBHelper {
       } else {
         callback(null, data);
       }
-    }, dataType, 'PUT');
+    }, dataType, DBHelper.httpMethods.put);
   }
 
   /**
@@ -319,7 +338,7 @@ class DBHelper {
       } else {
         callback(null, data);
       }
-    }, dataType, 'POST', data);
+    }, dataType, DBHelper.httpMethods.post, data);
   }
 
   /**
@@ -346,7 +365,7 @@ class DBHelper {
       } else {
         callback(null, data);
       }
-    }, dataType, 'PUT', data);
+    }, dataType, DBHelper.httpMethods.put, data);
   }
 
   /**
@@ -366,7 +385,7 @@ class DBHelper {
       } else {
         callback(null, data);
       }
-    }, dataType, 'DELETE');
+    }, dataType, DBHelper.httpMethods.delete);
   }
 
   /**

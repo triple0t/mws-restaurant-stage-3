@@ -183,6 +183,18 @@ createRestaurantHTML = (restaurant) => {
   // name.append(heartIcon);
   li.append(name);
 
+/*   const totalReview = document.createElement('p');
+  totalReview.className = 'review-box-x';
+
+  DBHelper.fetchReviewsByItsRestaurantId(restaurant.id, (err, res) => {
+    if (res && res.length > 0) {
+      const rev = `${res.length > 1 ? `<span class="highight">${res.length}</span> Reviews` : `<span class="highight">${res.length}</span> Review` }`
+      const rate = `<span class="highight">${Number.parseFloat(Math.round( (res.map((e => Number(e.rating))).reduce((e, n) => e + n)) / res.length * 100) / 100).toFixed(2)}</span> Star AVG`;
+      totalReview.innerHTML = `${rev} <br /> ${rate}`;
+      li.append(totalReview);
+    }
+  }); */
+
   const neighborhood = document.createElement('p');
   neighborhood.innerHTML = restaurant.neighborhood;
   li.append(neighborhood);

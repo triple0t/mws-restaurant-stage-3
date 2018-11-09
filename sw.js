@@ -1,17 +1,18 @@
 'use strict';
 
 /* This acts has the cache name as well  */
-const app = 'mwa-stage1-';
-const version = '06'
+const app = 'mwa-stage3-';
+const version = '01'
 const appName = `${app + version}`;
 
-const path = (location.hostname === 'triple0t.github.io') ? '/mws-restaurant-stage-1/' : `/`;
+const path = `/`;
 
 /* List of resources to add to cache */
 const resources = {
     app: [
         `${path}`,
         `${path}index.html`,
+        `${path}manifest.json`,
         `${path}restaurant.html`,
         `${path}js/dbhelper.js`,
         `${path}js/main.js`,
@@ -30,6 +31,9 @@ const resources = {
         `${path}img/8.jpg`,
         `${path}img/9.jpg`,
         `${path}img/10.jpg`,
+        `${path}img/icon-512x512.png`,
+        'https://unpkg.com/leaflet@1.3.1/dist/leaflet.css',
+        'https://unpkg.com/leaflet@1.3.1/dist/leaflet.js',
         'https://unpkg.com/leaflet@1.3.1/dist/images/marker-icon.png',
         'https://unpkg.com/leaflet@1.3.1/dist/images/marker-shadow.png'
     ]
@@ -91,21 +95,25 @@ self.addEventListener('fetch', event => {
 
     // check for restaurants server and do NOT add it to cache
     if (requestUrl.origin === 'http://localhost:1337') {
-        console.log('restaurant server not cached');
+        // console.log('restaurant server not cached');
         return;
     }
 
     event.respondWith(
         caches.match(event.request)
         .then(res => {
-            return res || fetch(event.request).then(newres => {
-                caches.open(appName)
-                .then(cache => {
-                    cache.put(event.request, newres.clone())
-                    return newres
-                })
-                .catch(err => {handleError(err, 'item not found in cache, error with network request')})
-            })
+            if (res) {
+                return res;
+            } else {
+                return fetch(event.request).then(newres => {
+                    caches.open(appName)
+                    .then(cache => {
+                        cache.put(event.request, newres.clone())
+                        return newres
+                    })
+                    .catch(err => {handleError(err, 'item not found in cache, error with network request')})
+                });
+            }
         })
         .catch(Err => {
             handleError(Err, 'Error with caches match.');
